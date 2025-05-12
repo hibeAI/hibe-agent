@@ -23,6 +23,30 @@ class Configuration:
         },
     )
 
+    team_leader_prompt: str = field(
+        default=prompts.TEAM_LEADER_PROMPT,
+        metadata={
+            "description": "The system prompt for the Team Leader agent. "
+            "This agent evaluates queries and routes them to specialized agents."
+        },
+    )
+
+    business_agent_prompt: str = field(
+        default=prompts.BUSINESS_AGENT_PROMPT,
+        metadata={
+            "description": "The system prompt for the Business Agent. "
+            "This agent provides information about business metrics and KPIs."
+        },
+    )
+
+    synthesizer_prompt: str = field(
+        default=prompts.SYNTHESIZER_PROMPT,
+        metadata={
+            "description": "The system prompt for the Synthesizer Agent. "
+            "This agent creates a cohesive final response from multiple sources."
+        },
+    )
+
     model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
         default="anthropic/claude-3-5-sonnet-20240620",
         metadata={

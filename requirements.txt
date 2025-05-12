@@ -1,0 +1,5 @@
+langchain-core>=0.1.22
+langgraph>=0.0.27
+langchain-anthropic>=0.1.1
+langchain-tavily>=0.0.2
+python-dotenv>=1.0.0 
