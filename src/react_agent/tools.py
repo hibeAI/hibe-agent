@@ -77,7 +77,7 @@ async def search(query: str) -> Optional[dict[str, Any]]:
     wrapped = TavilySearch(max_results=configuration.max_search_results)
     return cast(dict[str, Any], await wrapped.ainvoke({"query": query}))
 
-# Define which tools are available to which agents
+# Define which tools are available to which agent
 TEAM_LEADER_TOOLS: List[Callable[..., Any]] = [search]
 JOBS_AGENT_TOOLS: List[Tool] = [python_repl_tool]
 
