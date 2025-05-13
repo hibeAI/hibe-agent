@@ -3,4 +3,5 @@ langgraph>=0.0.27
 langchain-anthropic>=0.1.1
 langchain-tavily>=0.0.2
 python-dotenv>=1.0.0
-mysql-connector-python>=8.0.33 
+mysql-connector-python>=8.0.33
+langchain-experimental>=0.0.49 
