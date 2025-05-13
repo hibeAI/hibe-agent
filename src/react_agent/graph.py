@@ -386,8 +386,25 @@ async def call_synthesizer(state: State) -> Dict:
                     agent_responses.append(msg.content)
                     break
     
+    # Convert any list items to strings
+    processed_responses = []
+    for response in agent_responses:
+        if isinstance(response, list):
+            # Handle lists of items
+            response_parts = []
+            for item in response:
+                if item is None:
+                    continue
+                elif isinstance(item, dict) and "text" in item:
+                    response_parts.append(str(item["text"]))
+                else:
+                    response_parts.append(str(item))
+            processed_responses.append(" ".join(response_parts))
+        else:
+            processed_responses.append(str(response))
+    
     # Use intermediate_responses or extracted message
-    synthesis_content = '\n\n'.join(agent_responses) if agent_responses else "No information available."
+    synthesis_content = '\n\n'.join(processed_responses) if processed_responses else "No information available."
 
     synthesis_prompt = f"""
 Original user question: {last_user_message.content}
@@ -489,8 +506,34 @@ def route_team_leader_output(state: State) -> Literal["__end__", "jobs_agent", "
         print(f"Expected AIMessage in output edges, but got {type(last_message).__name__}")
         return "__end__"
 
+    # Get content and handle potential list format
+    content = last_message.content
+    
+    # Handle case where content is a list (convert to string)
+    if isinstance(content, list):
+        # Handle both simple lists and lists of objects
+        content_parts = []
+        for item in content:
+            if item is None:
+                continue
+            elif isinstance(item, dict) and "text" in item:
+                content_parts.append(str(item["text"]))
+            else:
+                content_parts.append(str(item))
+        content = " ".join(content_parts)
+        print(f"Converted list content to string: {content[:100]}...")
+    elif content is None:
+        # Handle case where content is None
+        content = ""
+        print("Content was None, using empty string")
+    else:
+        # Convert to string if it's any other type
+        content = str(content)
+    
+    # Convert to lowercase for consistent checking
+    response_lower = content.lower()
+    
     # Check if the Team Leader's response indicates routing to Jobs Agent
-    response_lower = last_message.content.lower()
     if "jobs agent" in response_lower or "route to jobs" in response_lower:
         print("Team Leader decided to route to Jobs Agent")
         return "jobs_agent"

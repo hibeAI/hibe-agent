@@ -22,7 +22,7 @@ async def test_prod_agent():
         input={
             "messages": [{
                 "role": "human",
-                "content": "My sales in 2023 where $1m and in 2024 they were $2m. What is the growth rate?"  # Simple string content
+                "content": "Give me the total amount of rows in my jobs table"  # Simple string content
             }],
         },
         stream_mode="updates",
