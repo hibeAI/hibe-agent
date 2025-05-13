@@ -6,7 +6,7 @@ These tools are intended as free examples to get started. For production use,
 consider implementing more robust and specialized tools tailored to your needs.
 """
 
-import mysql.connector
+# import mysql.connector
 import json
 import os
 from dotenv import load_dotenv
