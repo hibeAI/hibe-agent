@@ -173,62 +173,63 @@ async def call_jobs_agent(state: State) -> Dict:
         {"role": "user", "content": last_user_message.content},
     ]
     
-    # Get initial response from the jobs agent
-    response = cast(
-        AIMessage,
-        await call_model_with_retry(model, messages),
-    )
-    
-    # Keep track of all responses for synthesis
     all_responses = []
     
-    # Process tool calls until we get a final response without tool calls
-    while response.tool_calls:
-        # Process each tool call
-        for tool_call in response.tool_calls:
-            tool_name = tool_call.get("name")
-            tool_args = tool_call.get("args", {})
-            
-            # Find the tool from JOBS_AGENT_TOOLS
-            tool = None
-            for t in JOBS_AGENT_TOOLS:
-                if hasattr(t, "name") and t.name == tool_name:
-                    tool = t
-                    break
-                    
-            if tool is None:
-                tool_result = f"Error: Tool '{tool_name}' not found in JOBS_AGENT_TOOLS"
-            else:
-                try:
-                    # Handle different argument formats
-                    if tool_name == "python_repl":
-                        # Extract the code from various possible argument formats
-                        if "code" in tool_args:
-                            code = tool_args["code"]
-                        elif "__arg1" in tool_args:
-                            code = tool_args["__arg1"]
-                        else:
-                            # Take the first argument regardless of name
-                            code = next(iter(tool_args.values()), "")
-                            
-                        if callable(tool.func):
-                            if asyncio.iscoroutinefunction(tool.func):
-                                tool_result = await tool.func(code)
+    try:
+        # Get initial response from the jobs agent
+        response = cast(
+            AIMessage,
+            await call_model_with_retry(model, messages),
+        )
+        
+        # Process tool calls until we get a final response without tool calls
+        # Make sure tool_calls is actually present and is a list
+        while hasattr(response, 'tool_calls') and response.tool_calls and isinstance(response.tool_calls, list):
+            # Process each tool call
+            for tool_call in response.tool_calls:
+                tool_name = tool_call.get("name")
+                tool_args = tool_call.get("args", {})
+                
+                # Find the tool from JOBS_AGENT_TOOLS
+                tool = None
+                for t in JOBS_AGENT_TOOLS:
+                    if hasattr(t, "name") and t.name == tool_name:
+                        tool = t
+                        break
+                        
+                if tool is None:
+                    tool_result = f"Error: Tool '{tool_name}' not found in JOBS_AGENT_TOOLS"
+                else:
+                    try:
+                        # Handle different argument formats
+                        if tool_name == "python_repl":
+                            # Extract the code from various possible argument formats
+                            if "code" in tool_args:
+                                code = tool_args["code"]
+                            elif "__arg1" in tool_args:
+                                code = tool_args["__arg1"]
                             else:
-                                tool_result = tool.func(code)
-                        else:
-                            tool_result = f"Error: Tool function is not callable"
-                    else:
-                        # For other tools, pass all arguments
-                        if callable(tool.func):
-                            if asyncio.iscoroutinefunction(tool.func):
-                                tool_result = await tool.func(**tool_args)
+                                # Take the first argument regardless of name
+                                code = next(iter(tool_args.values()), "")
+                                
+                            if callable(tool.func):
+                                if asyncio.iscoroutinefunction(tool.func):
+                                    tool_result = await tool.func(code)
+                                else:
+                                    tool_result = tool.func(code)
                             else:
-                                tool_result = tool.func(**tool_args)
+                                tool_result = f"Error: Tool function is not callable"
                         else:
-                            tool_result = f"Error: Tool function is not callable"
-                except Exception as e:
-                    tool_result = f"Error executing tool: {str(e)}"
+                            # For other tools, pass all arguments
+                            if callable(tool.func):
+                                if asyncio.iscoroutinefunction(tool.func):
+                                    tool_result = await tool.func(**tool_args)
+                                else:
+                                    tool_result = tool.func(**tool_args)
+                            else:
+                                tool_result = f"Error: Tool function is not callable"
+                    except Exception as e:
+                        tool_result = f"Error executing tool: {str(e)}"
               
                 # Create a tool message with the result
                 tool_message = ToolMessage(
@@ -237,34 +238,67 @@ async def call_jobs_agent(state: State) -> Dict:
                     name=tool_name,
                 )
                 
-                # Add the response and tool result to messages
+                # Add the response and tool result to messages - without extra fields that might cause API errors
+                assistant_content = response.content
+                
+                # Use a clean format for messages without any extra unexpected fields
                 messages.extend([
-                    {"role": "assistant", "content": response.content},
+                    {"role": "assistant", "content": assistant_content},
                     {
-                        "role": "tool",
+                        "role": "tool", 
                         "tool_call_id": tool_call.get("id"),
                         "name": tool_name,
-                        "content": str(tool_result),
+                        "content": str(tool_result)
                     },
                 ])
                 
                 # Get next response after tool use
-                response = cast(
-                    AIMessage,
-                    await call_model_with_retry(model, messages),
-                )
+                try:
+                    # Ensure we're passing a clean message format
+                    cleaned_messages = [
+                        {"role": "system", "content": system_message}
+                    ]
+                    # Add user and assistant/tool messages, ensuring only necessary fields
+                    for msg in messages:
+                        if msg["role"] == "user":
+                            cleaned_messages.append({"role": "user", "content": msg["content"]})
+                        elif msg["role"] == "assistant":
+                            cleaned_messages.append({"role": "assistant", "content": msg["content"]})
+                        elif msg["role"] == "tool":
+                            cleaned_messages.append({
+                                "role": "tool",
+                                "tool_call_id": msg.get("tool_call_id", ""),
+                                "name": msg.get("name", ""),
+                                "content": msg.get("content", "")
+                            })
+                    
+                    response = cast(
+                        AIMessage,
+                        await call_model_with_retry(model, cleaned_messages),
+                    )
+                except Exception as e:
+                    print(f"Error in tool response handling: {str(e)}")
+                    # Create a simple response if there's an error
+                    response = AIMessage(content=f"I processed your request but encountered an issue: {str(e)}. Here's what I found so far: {tool_result}")
                 
                 # Store responses for synthesis
-                all_responses.append(response.content)
-    
-    # Add the final response
-    all_responses.append(response.content)
-    state.intermediate_responses = all_responses
+                if response.content:
+                    all_responses.append(response.content)
+        
+        # Add the final response
+        all_responses.append(response.content)
+        state.intermediate_responses = all_responses
+        
+    except Exception as e:
+        error_msg = f"Error in Jobs Agent tool execution: {str(e)}"
+        print(error_msg)
+        response = AIMessage(content=f"I encountered an error while processing your request: {str(e)}. Please try rephrasing your question or contact support if the issue persists.")
+        state.intermediate_responses = [response.content]
     
     # Return all messages including tool interactions
     return {
         "messages": [response],
-        "intermediate_responses": all_responses
+        "intermediate_responses": state.intermediate_responses
     }
 
 
