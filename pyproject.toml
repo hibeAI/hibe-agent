@@ -17,6 +17,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "langchain-tavily>=0.1",
     "langchain-experimental>=0.0.49",
+    "mysql-connector-python>=8.0.33",
 ]
 
 
