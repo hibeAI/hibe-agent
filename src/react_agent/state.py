@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional, Sequence
+from typing import Dict, List, Literal, Optional, Sequence, Any
 
 from langchain_core.messages import AnyMessage
 from langgraph.graph import add_messages
@@ -53,37 +53,18 @@ class State(InputState):
     It is set to 'True' when the step count reaches recursion_limit - 1.
     """
 
-    current_agent: Literal["team_leader", "business_agent", "synthesizer"] = field(
+    current_agent: Literal["team_leader", "jobs_agent", "business_metrics_agent", "synthesizer"] = field(
         default="team_leader"
     )
     """Tracks which agent is currently active in the workflow."""
 
-    business_data: Dict[str, any] = field(
-        default_factory=lambda: {
-            "sales": {
-                "2023": 1250000,
-                "2022": 980000,
-                "2021": 750000,
-            },
-            "customers": {
-                "total": 350,
-                "active": 280,
-                "new_last_year": 75,
-            },
-            "products": [
-                {"name": "Product A", "sales_2023": 450000},
-                {"name": "Product B", "sales_2023": 325000},
-                {"name": "Product C", "sales_2023": 475000},
-            ],
-            "regions": {
-                "North": {"sales_2023": 400000},
-                "South": {"sales_2023": 350000},
-                "East": {"sales_2023": 200000},
-                "West": {"sales_2023": 300000},
-            }
-        }
-    )
-    """Dummy business data for the business agent to access."""
+    context: Dict[str, Any] = field(default_factory=dict)
+    """
+    Stores conversation memory and summary information across turns.
+    This helps maintain context for follow-up questions without exceeding context limits.
+    """
+
+
 
     intermediate_responses: List[str] = field(default_factory=list)
     """Stores responses from agents before final synthesis."""

@@ -6,12 +6,65 @@ These tools are intended as free examples to get started. For production use,
 consider implementing more robust and specialized tools tailored to your needs.
 """
 
-from typing import Any, Callable, Dict, List, Optional, cast
+import mysql.connector
+import json
+import os
+from dotenv import load_dotenv
+from typing import Any, Callable, Dict, List, Optional, cast, Annotated, Union
+import inspect
+from pathlib import Path
 
 from langchain_tavily import TavilySearch  # type: ignore[import-not-found]
+from langchain_experimental.utilities import PythonREPL
+from langchain_core.tools import Tool, BaseTool
 
 from react_agent.configuration import Configuration
 
+# Load environment variables from .env
+load_dotenv()
+
+# -----------------------------
+# Python REPL Tool Definition
+# -----------------------------
+
+_python_repl = PythonREPL()
+
+
+def run_python_code(code: str) -> str:
+    """Run arbitrary python code and return the result."""
+    try:
+        result = _python_repl.run(code)
+        return result
+    except Exception as e:
+        error_msg = f"Error executing Python code: {str(e)}"
+        return error_msg
+
+
+# Define a simple tool that wraps the python repl function
+python_repl_tool = Tool(
+    name="python_repl",
+    func=run_python_code,
+    description="Run Python code to interact with the database or perform calculations. The code will be executed in a secure environment. If you want to see output, use print() statements.",
+    return_direct=False
+)
+
+
+# def get_db_connection():
+#     """Get a MySQL database connection using environment variables."""
+#     try:
+#         connection = mysql.connector.connect(
+#             host=os.getenv('DB_HOST'),
+#             user=os.getenv('DB_USER'),
+#             password=os.getenv('DB_PASSWORD'),
+#             database=os.getenv('DB_NAME'),
+#             port=int(os.getenv('DB_PORT', '3306'))
+#         )
+#         return connection
+#     except Exception as e:
+#         print(f"\nError creating database connection:")
+#         print(f"Type: {type(e).__name__}")
+#         print(f"Message: {str(e)}")
+#         raise
 
 async def search(query: str) -> Optional[dict[str, Any]]:
     """Search for general web results.
@@ -24,54 +77,9 @@ async def search(query: str) -> Optional[dict[str, Any]]:
     wrapped = TavilySearch(max_results=configuration.max_search_results)
     return cast(dict[str, Any], await wrapped.ainvoke({"query": query}))
 
-
-async def get_business_data(key: str = "") -> Dict[str, Any]:
-    """Access the company's business data.
-    
-    This tool provides access to company business metrics including sales figures, 
-    customer data, product performance, and regional breakdowns.
-    
-    Args:
-        key: Optional specific data key to retrieve (e.g., "sales", "customers").
-            If empty, returns all business data.
-    """
-    from react_agent.state import State
-    
-    # This is a placeholder implementation that would normally 
-    # access the state data from the actual agent runtime
-    business_data = {
-        "sales": {
-            "2023": 1250000,
-            "2022": 980000,
-            "2021": 750000,
-        },
-        "customers": {
-            "total": 350,
-            "active": 280,
-            "new_last_year": 75,
-        },
-        "products": [
-            {"name": "Product A", "sales_2023": 450000},
-            {"name": "Product B", "sales_2023": 325000},
-            {"name": "Product C", "sales_2023": 475000},
-        ],
-        "regions": {
-            "North": {"sales_2023": 400000},
-            "South": {"sales_2023": 350000},
-            "East": {"sales_2023": 200000},
-            "West": {"sales_2023": 300000},
-        }
-    }
-    
-    if key and key in business_data:
-        return {key: business_data[key]}
-    
-    return business_data
-
-
 # Define which tools are available to which agents
 TEAM_LEADER_TOOLS: List[Callable[..., Any]] = [search]
-BUSINESS_AGENT_TOOLS: List[Callable[..., Any]] = [get_business_data]
+JOBS_AGENT_TOOLS: List[Tool] = [python_repl_tool]
 
 # Default tools for backward compatibility
 TOOLS: List[Callable[..., Any]] = [search]

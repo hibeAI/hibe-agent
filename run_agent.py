@@ -4,17 +4,20 @@
 import asyncio
 import os
 import time
-from typing import Dict
+import uuid
+from typing import Dict, List, Optional
 
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, AnyMessage
 
-from src.react_agent.graph import graph
-from src.react_agent.state import InputState
+from src.react_agent.graph import graph, checkpointer
+from src.react_agent.state import InputState, State
 
 # Load environment variables
 load_dotenv()
 
+# Global variable to track the current thread ID
+current_thread_id = None
 
 async def run_agent_with_retry(input_state, config, max_retries=3, initial_backoff=2):
     """Run the agent with automatic retries for API overload errors."""
@@ -37,18 +40,35 @@ async def run_agent_with_retry(input_state, config, max_retries=3, initial_backo
                 raise
 
 
-async def run_agent_with_query(query: str) -> None:
-    """Run the agent with a user query and print the response."""
-    # Create input state with the query
+async def run_agent_with_query(query: str, thread_id: str = None) -> str:
+    """Run the agent with a user query and print the response.
+    
+    Args:
+        query (str): The user's input query
+        thread_id (str, optional): The conversation thread ID for maintaining context
+        
+    Returns:
+        str: The thread_id used for this conversation
+    """
+    # Use provided thread_id or generate a new one
+    if thread_id is None:
+        thread_id = str(uuid.uuid4())
+        print(f"Starting new conversation with thread_id: {thread_id}")
+    else:
+        print(f"Continuing conversation with thread_id: {thread_id}")
+    
+    # Create input state with ONLY the current query
+    # The checkpointer will automatically handle retrieving previous messages
     input_state = InputState(
         messages=[HumanMessage(content=query)]
     )
     
-    # Create configuration with default values
+    # Create configuration with thread_id for memory persistence
     config: Dict = {
         "configurable": {
             "model": os.environ.get("LLM_MODEL", "anthropic/claude-3-5-sonnet-20240620"),
             "max_search_results": 5,
+            "thread_id": thread_id  # This is the key for memory to work!
         }
     }
     
@@ -58,47 +78,47 @@ async def run_agent_with_query(query: str) -> None:
         # Use the retry function to handle overloaded errors
         state = await run_agent_with_retry(input_state, config)
         
-        # Add debugging to inspect the state
-        print(f"State type: {type(state)}")
-        print(f"State attributes: {dir(state)}")
+        # Extract and display the response
+        response_content = None
         
-        # Try different ways to access messages
         if hasattr(state, "messages") and state.messages:
             # Get the last AI message
             ai_messages = [msg for msg in state.messages if isinstance(msg, AIMessage)]
             if ai_messages:
                 last_ai_message = ai_messages[-1]
-                print(f"Agent: {last_ai_message.content}")
+                response_content = last_ai_message.content
+                print(f"Agent: {response_content}")
             else:
                 print("No AI messages found in the state.messages attribute.")
         elif isinstance(state, dict) and "messages" in state:
             # If the state is returned as a dict
             messages = state["messages"]
             if messages and len(messages) > 0:
-                print(f"Agent: {messages[-1].content}")
+                last_message = messages[-1]
+                response_content = last_message.content
+                print(f"Agent: {response_content}")
             else:
                 print("No messages found in the state dictionary.")
-        elif isinstance(state, dict):
-            # Debug what keys are available
-            print(f"State keys: {state.keys()}")
-            # Try to find messages in any form
-            for key, value in state.items():
-                if "message" in key.lower():
-                    print(f"Found potential messages in key: {key}")
-                    print(f"Value: {value}")
         else:
             print("No messages found in the response state.")
+        
+        # Return the thread_id for continuity
+        return thread_id
             
     except Exception as e:
         print(f"Error running agent: {e}")
         import traceback
         traceback.print_exc()
+        return thread_id
 
 
 async def interactive_loop() -> None:
     """Run an interactive loop to chat with the agent."""
+    global current_thread_id
+    
     print("\n===== Multi-Agent System =====")
-    print("Type 'exit' or 'quit' to end the conversation.\n")
+    print("Type 'exit' or 'quit' to end the conversation.")
+    print("Type 'new' to start a new conversation thread.\n")
     
     while True:
         # Get user input
@@ -109,8 +129,14 @@ async def interactive_loop() -> None:
             print("Goodbye!")
             break
         
-        # Run the agent with the query
-        await run_agent_with_query(query)
+        # Check if user wants to start a new conversation
+        if query.lower() == "new":
+            current_thread_id = None
+            print("Starting a new conversation thread.")
+            continue
+        
+        # Run the agent with the query, maintaining thread context
+        current_thread_id = await run_agent_with_query(query, current_thread_id)
 
 
 if __name__ == "__main__":
