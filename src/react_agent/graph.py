@@ -176,10 +176,18 @@ async def call_jobs_agent(state: State) -> Dict:
     all_responses = []
     
     try:
-        # Get initial response from the jobs agent
+        # Ensure we're using a format compatible with Anthropic API
+        clean_initial_messages = []
+        for msg in messages:
+            if msg["role"] == "system":
+                clean_initial_messages.append({"role": "system", "content": msg["content"]})
+            elif msg["role"] == "user":
+                clean_initial_messages.append({"role": "user", "content": msg["content"]})
+        
+        # Get initial response from the jobs agent with clean message format
         response = cast(
             AIMessage,
-            await call_model_with_retry(model, messages),
+            await call_model_with_retry(model, clean_initial_messages),
         )
         
         # Process tool calls until we get a final response without tool calls
@@ -241,12 +249,19 @@ async def call_jobs_agent(state: State) -> Dict:
                 # Add the response and tool result to messages - without extra fields that might cause API errors
                 assistant_content = response.content
                 
-                # Use a clean format for messages without any extra unexpected fields
+                # Only keep the essential fields for API compatibility
+                # For Anthropic API, we need to match exactly what it expects for tool calls
+                if isinstance(tool_call, dict) and "id" in tool_call:
+                    tool_call_id = tool_call["id"]
+                else:
+                    # Generate a simple ID if none exists
+                    tool_call_id = f"call_{len(messages)}"
+                    
                 messages.extend([
                     {"role": "assistant", "content": assistant_content},
                     {
                         "role": "tool", 
-                        "tool_call_id": tool_call.get("id"),
+                        "tool_call_id": tool_call_id,
                         "name": tool_name,
                         "content": str(tool_result)
                     },
@@ -254,23 +269,27 @@ async def call_jobs_agent(state: State) -> Dict:
                 
                 # Get next response after tool use
                 try:
-                    # Ensure we're passing a clean message format
+                    # Reset with only system and most recent user message for Claude
+                    # This avoids tool history format issues while maintaining context
                     cleaned_messages = [
                         {"role": "system", "content": system_message}
                     ]
-                    # Add user and assistant/tool messages, ensuring only necessary fields
+                    
+                    # Find the last user message
+                    last_user_msg = None
                     for msg in messages:
                         if msg["role"] == "user":
-                            cleaned_messages.append({"role": "user", "content": msg["content"]})
-                        elif msg["role"] == "assistant":
-                            cleaned_messages.append({"role": "assistant", "content": msg["content"]})
-                        elif msg["role"] == "tool":
-                            cleaned_messages.append({
-                                "role": "tool",
-                                "tool_call_id": msg.get("tool_call_id", ""),
-                                "name": msg.get("name", ""),
-                                "content": msg.get("content", "")
-                            })
+                            last_user_msg = msg["content"]
+                    
+                    # Add result context to user message
+                    context_msg = f"""
+Based on the database query, here's what I've found:
+{tool_result}
+
+Please continue answering my question:
+{last_user_msg}
+"""
+                    cleaned_messages.append({"role": "user", "content": context_msg})
                     
                     response = cast(
                         AIMessage,
