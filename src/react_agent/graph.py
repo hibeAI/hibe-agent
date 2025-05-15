@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 import json
 from typing import Dict, List, Literal, cast
 
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage, AnyMessage
 from langchain_core.messages.utils import count_tokens_approximately, trim_messages
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode
@@ -76,6 +76,42 @@ async def pre_model_hook(state: State) -> Dict:
         start_on="human",
         end_on=("human", "tool")
     )
+    
+    # --- Ensure we don't leave dangling tool_use messages without their corresponding tool_result ---
+    def _remove_unpaired_tool_messages(msgs):
+        """Remove AIMessage entries that contain `tool_calls` if their corresponding
+        ToolMessage result is not present immediately after. This avoids Anthropic
+        API 400 errors like:
+        `tool_use ids were found without tool_result blocks immediately after`.
+
+        If a ToolMessage appears without the preceding AIMessage (because it was
+        trimmed), it is also dropped.
+        """
+        cleaned: List[AnyMessage] = []
+        idx = 0
+        while idx < len(msgs):
+            msg = msgs[idx]
+            # Handle AIMessage that invoked a tool
+            if isinstance(msg, AIMessage) and getattr(msg, "tool_calls", None):
+                if idx + 1 < len(msgs) and isinstance(msgs[idx + 1], ToolMessage):
+                    # Keep both the tool_use and its tool_result
+                    cleaned.append(msg)
+                    cleaned.append(msgs[idx + 1])
+                    idx += 2
+                    continue
+                # Otherwise, drop the unpaired tool_use (and any stray next message)
+                idx += 1
+                continue
+            # Drop stray ToolMessage without its preceding AIMessage
+            if isinstance(msg, ToolMessage):
+                idx += 1
+                continue
+            # Keep all other messages
+            cleaned.append(msg)
+            idx += 1
+        return cleaned
+
+    trimmed_messages = _remove_unpaired_tool_messages(trimmed_messages)
     
     # Return the trimmed messages for LLM input
     return {"llm_input_messages": trimmed_messages}
