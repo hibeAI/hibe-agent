@@ -57,7 +57,7 @@ connection = mysql.connector.connect(
 )
 
 # Execute query
-cursor = connection.cursor(dictionary=True)
+cursor = connection.cursor(buffered=True, dictionary=True)
 cursor.execute("SELECT * FROM your_table LIMIT 5")
 results = cursor.fetchall()
 
