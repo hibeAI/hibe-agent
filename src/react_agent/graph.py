@@ -320,13 +320,10 @@ async def call_jobs_agent(state: State) -> Dict:
                         if msg["role"] == "user":
                             last_user_msg = msg["content"]
                     
-                    # Add result context to user message
+                    # Add result context to user message - without asking to "continue answering"
                     context_msg = f"""
-Based on the database query, here's what I've found:
+I've executed your database query. Here are the results:
 {tool_result}
-
-Please continue answering my question:
-{last_user_msg}
 """
                     cleaned_messages.append({"role": "user", "content": context_msg})
                     
