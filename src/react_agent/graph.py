@@ -7,12 +7,13 @@ import asyncio
 from datetime import UTC, datetime
 import json
 from typing import Dict, List, Literal, cast
+import sqlite3
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage, AnyMessage
 from langchain_core.messages.utils import count_tokens_approximately, trim_messages
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 
 from react_agent.configuration import Configuration
 from react_agent.state import InputState, State
@@ -25,7 +26,9 @@ from react_agent.utils import load_chat_model
 
 # Create a checkpointer for memory persistence
 # This needs to be accessible from other modules
-checkpointer = InMemorySaver()
+# Using SQLite for persistent storage across restarts
+sqlite_conn = sqlite3.connect("agent_state.sqlite", check_same_thread=False)
+checkpointer = SqliteSaver(sqlite_conn)
 
 # Add retry helper function for model calls
 
