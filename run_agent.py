@@ -10,7 +10,7 @@ from typing import Dict, List, Optional
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, HumanMessage, AnyMessage
 
-from src.react_agent.graph import graph, checkpointer
+from src.react_agent.graph import graph, get_graph
 from src.react_agent.state import InputState, State
 
 # Load environment variables
@@ -26,7 +26,9 @@ async def run_agent_with_retry(input_state, config, max_retries=3, initial_backo
     
     while retries <= max_retries:
         try:
-            return await graph.ainvoke(input_state, config=config)
+            # Get graph with checkpointer initialized in async context
+            async_graph = await get_graph()
+            return await async_graph.ainvoke(input_state, config=config)
         except Exception as e:
             error_str = str(e)
             # Check if this is an overloaded error
@@ -54,14 +56,46 @@ async def run_agent_with_query(query: str, thread_id: str = None) -> str:
     if thread_id is None:
         thread_id = str(uuid.uuid4())
         print(f"Starting new conversation with thread_id: {thread_id}")
+        
+        # For new threads, create a fresh input with just the current message
+        input_state = InputState(
+            messages=[HumanMessage(content=query)]
+        )
     else:
         print(f"Continuing conversation with thread_id: {thread_id}")
-    
-    # Create input state with ONLY the current query
-    # The checkpointer will automatically handle retrieving previous messages
-    input_state = InputState(
-        messages=[HumanMessage(content=query)]
-    )
+        
+        # For existing threads, we need to:
+        # 1. Get the async graph implementation with its checkpointer
+        async_graph = await get_graph()
+        
+        # 2. Load the latest state from the checkpointer
+        config = {
+            "configurable": {
+                "thread_id": thread_id
+            }
+        }
+        
+        try:
+            # Try to get the last state from the checkpointer
+            latest_state = await async_graph.aget_state(config)
+            
+            # Add the new message to the existing messages
+            if latest_state and hasattr(latest_state, "values") and "messages" in latest_state.values:
+                # Create input state with all previous messages plus the new one
+                input_state = InputState(
+                    messages=latest_state.values["messages"] + [HumanMessage(content=query)]
+                )
+                print(f"Loaded {len(latest_state.values['messages'])} previous messages from history")
+            else:
+                # Fallback if we can't get previous messages
+                input_state = InputState(
+                    messages=[HumanMessage(content=query)]
+                )
+        except Exception as e:
+            print(f"Error loading previous state: {e}. Starting with just the current query.")
+            input_state = InputState(
+                messages=[HumanMessage(content=query)]
+            )
     
     # Create configuration with thread_id for memory persistence
     config: Dict = {

@@ -32,11 +32,16 @@ _python_repl = PythonREPL()
 
 def run_python_code(code: str) -> str:
     """Run arbitrary python code and return the result."""
+    print("\n--- PYTHON REPL EXECUTING CODE ---")
+    print(f"CODE:\n{code}\n")
+    
     try:
         result = _python_repl.run(code)
+        print(f"RESULT:\n{result}\n")
         return result
     except Exception as e:
         error_msg = f"Error executing Python code: {str(e)}"
+        print(f"ERROR:\n{error_msg}\n")
         return error_msg
 
 

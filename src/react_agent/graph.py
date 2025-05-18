@@ -8,12 +8,16 @@ from datetime import UTC, datetime
 import json
 from typing import Dict, List, Literal, cast
 import sqlite3
+import os
+import aiosqlite
+from openai import OpenAI
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage, AnyMessage
 from langchain_core.messages.utils import count_tokens_approximately, trim_messages
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from react_agent.configuration import Configuration
 from react_agent.state import InputState, State
@@ -24,11 +28,87 @@ from react_agent.tools import (
 )
 from react_agent.utils import load_chat_model
 
-# Create a checkpointer for memory persistence
-# This needs to be accessible from other modules
+# Create a synchronous checkpointer for reference and non-async operations
 # Using SQLite for persistent storage across restarts
 sqlite_conn = sqlite3.connect("agent_state.sqlite", check_same_thread=False)
 checkpointer = SqliteSaver(sqlite_conn)
+
+# Initialize the OpenAI client
+client = OpenAI()
+
+# Define EventHandler for OpenAI assistant streaming
+class EventHandler:
+    def __init__(self):
+        """Initialize the event handler with an empty responses list."""
+        self.responses = []
+        
+    def on_text_created(self, text):
+        """Handler for text creation events."""
+        print(text.value, end="", flush=True)
+        self.responses.append(text.value)
+        
+    def on_text_delta(self, delta, snapshot):
+        """Handler for text delta events."""
+        print(delta.value, end="", flush=True)
+        
+    def on_tool_call_created(self, tool_call):
+        """Handler for tool call creation events."""
+        print(f"\n[Tool Call: {tool_call.type}]", flush=True)
+        
+    def on_tool_call_delta(self, delta, snapshot):
+        """Handler for tool call delta events."""
+        if delta.type == "code_interpreter":
+            if hasattr(delta, "input") and delta.input:
+                print(delta.input, end="", flush=True)
+            if hasattr(delta, "outputs") and delta.outputs:
+                for output in delta.outputs:
+                    if output.type == "logs":
+                        print(f"\n[Code Output]\n{output.logs}\n", flush=True)
+    
+    # Required methods for OpenAI client compatibility
+    def on_event(self, event):
+        """Generic event handler that dispatches to specific handlers."""
+        event_type = event.get("type")
+        if event_type == "thread.message.created":
+            self._handle_message_created(event.get("data", {}))
+        elif event_type == "thread.message.delta":
+            self._handle_message_delta(event.get("data", {}))
+        elif event_type == "thread.run.created":
+            pass  # Handle if needed
+        elif event_type == "thread.run.queued":
+            pass  # Handle if needed
+        elif event_type == "thread.run.in_progress":
+            pass  # Handle if needed
+        elif event_type == "thread.run.completed":
+            pass  # Handle if needed
+        elif event_type == "thread.run.failed":
+            print(f"\nRun failed: {event.get('data', {}).get('error', 'Unknown error')}")
+        elif event_type == "thread.run.cancelled":
+            print("\nRun cancelled")
+            
+    def _handle_message_created(self, data):
+        """Handle message created events."""
+        message = data.get("object")
+        if message and message.get("role") == "assistant":
+            for content in message.get("content", []):
+                if content.get("type") == "text":
+                    text_value = content.get("text", {}).get("value", "")
+                    if text_value:
+                        print(text_value, end="", flush=True)
+                        self.responses.append(text_value)
+                        
+    def _handle_message_delta(self, data):
+        """Handle message delta events."""
+        delta = data.get("delta", {})
+        for content in delta.get("content", []):
+            if content.get("type") == "text":
+                text_value = content.get("text", {}).get("value", "")
+                if text_value:
+                    print(text_value, end="", flush=True)
+    
+    def get_responses(self):
+        """Return all collected responses."""
+        return self.responses
 
 # Add retry helper function for model calls
 
@@ -194,14 +274,28 @@ async def call_jobs_agent(state: State) -> Dict:
         system_time=datetime.now(tz=UTC).isoformat()
     )
 
-    # Create a human message to forward the user's query to the jobs agent
-    last_user_message = next(
-        (msg for msg in reversed(state.messages) if isinstance(msg, HumanMessage)),
-        None,
-    )
-    if not last_user_message:
-        response = AIMessage(content="No user message found to forward to the Jobs Agent.")
+    # Get all user messages to include context
+    user_messages = []
+    for msg in state.messages:
+        if isinstance(msg, HumanMessage):
+            user_messages.append(msg.content)
+            
+    if not user_messages:
+        response = AIMessage(content="No user messages found to forward to the Jobs Agent.")
         return {"messages": [response]}
+    
+    # Create a context-rich query with history
+    context_message = ""
+    if len(user_messages) > 1:
+        # Include previous messages as context
+        context_message = "User conversation history:\n"
+        for i, msg in enumerate(user_messages[:-1]):
+            context_message += f"Message {i+1}: {msg}\n"
+        context_message += f"\nCurrent user query: {user_messages[-1]}\n\n"
+        context_message += "Please analyze the full conversation history when answering the current query."
+    else:
+        # Just one message
+        context_message = user_messages[0]
     
     # Apply pre-model hook to manage message history
     hook_result = await pre_model_hook(state)
@@ -209,7 +303,7 @@ async def call_jobs_agent(state: State) -> Dict:
     
     messages = [
         {"role": "system", "content": system_message},
-        {"role": "user", "content": last_user_message.content},
+        {"role": "user", "content": context_message},
     ]
     
     all_responses = []
@@ -322,8 +416,11 @@ async def call_jobs_agent(state: State) -> Dict:
                     
                     # Add result context to user message - without asking to "continue answering"
                     context_msg = f"""
-I've executed your database query. Here are the results:
+Based on your previous request, I've executed your database query. Here are the results:
+
 {tool_result}
+
+Please analyze these results and provide the answer to the user's original question.
 """
                     cleaned_messages.append({"role": "user", "content": context_msg})
                     
@@ -361,7 +458,7 @@ async def call_business_metrics_agent(state: State) -> Dict:
     """Call the Business Metrics Agent to provide business analysis.
 
     This agent specializes in business metrics analysis and provides
-    thorough business insights and recommendations.
+    thorough business insights and recommendations using an OpenAI Assistant.
 
     Args:
         state (State): The current state of the conversation.
@@ -369,62 +466,110 @@ async def call_business_metrics_agent(state: State) -> Dict:
     Returns:
         dict: A dictionary containing the model's response message.
     """
-    print("Calling Business Metrics Agent...")
-    configuration = Configuration.from_context()
-
+    print("Calling Business Metrics Agent (OpenAI Assistant)...")
+    
     # Set current agent in state
     state.current_agent = "business_metrics_agent"
     
     # Make sure intermediate_responses is empty for this new run
     state.intermediate_responses = []
 
-    # Initialize the model (no tools needed for business metrics agent)
-    model = load_chat_model(configuration.model)
+    # Get the Assistant ID from environment variables
+    ASSISTANT_ID = os.getenv('assistant_id')
+    if not ASSISTANT_ID:
+        response = AIMessage(content="Error: OpenAI Assistant ID not found in environment variables.")
+        return {"messages": [response], "intermediate_responses": [response.content]}
 
-    # Format the business metrics agent system prompt
-    system_message = configuration.business_metrics_agent_prompt.format(
-        system_time=datetime.now(tz=UTC).isoformat()
-    )
-
-    # Create a human message to forward the user's query to the business metrics agent
-    last_user_message = next(
-        (msg for msg in reversed(state.messages) if isinstance(msg, HumanMessage)),
-        None,
-    )
-    if not last_user_message:
-        response = AIMessage(content="No user message found to forward to the Business Metrics Agent.")
-        return {"messages": [response]}
+    # Get all user messages to include context
+    user_messages = []
+    for msg in state.messages:
+        if isinstance(msg, HumanMessage):
+            user_messages.append(msg.content)
+            
+    if not user_messages:
+        response = AIMessage(content="No user messages found to forward to the Business Metrics Agent.")
+        return {"messages": [response], "intermediate_responses": [response.content]}
     
-    # Create a prompt with just the user question
-    prompt = f"""
-User question: {last_user_message.content}
-
-Please analyze this question and provide thorough insights and recommendations.
-"""
+    # Create a context-rich query with history
+    context_message = ""
+    if len(user_messages) > 1:
+        # Include previous messages as context
+        context_message = "User conversation history:\n"
+        for i, msg in enumerate(user_messages[:-1]):
+            context_message += f"Message {i+1}: {msg}\n"
+        context_message += f"\nCurrent user query: {user_messages[-1]}\n\n"
+        context_message += "Please analyze the full conversation history when answering the current query."
+    else:
+        # Just one message
+        context_message = user_messages[0]
     
-    # Apply pre-model hook to manage message history
-    hook_result = await pre_model_hook(state)
-    
-    # Get the business metrics agent's response with retry
-    response = cast(
-        AIMessage,
-        await call_model_with_retry(
-            model,
-            [
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": prompt},
-            ]
-        ),
-    )
-    
-    # Store response for synthesis
-    state.intermediate_responses = [response.content]
-    
-    # Return the response
-    return {
-        "messages": [response],
-        "intermediate_responses": [response.content]
-    }
+    try:
+        # Create a thread
+        thread = client.beta.threads.create()
+        
+        # Add a message to the thread
+        client.beta.threads.messages.create(
+            thread_id=thread.id,
+            role="user",
+            content=context_message
+        )
+        
+        # Run the assistant and wait for completion - no streaming
+        print("\nProcessing your request with Business Metrics Agent...\n")
+        run = client.beta.threads.runs.create(
+            thread_id=thread.id,
+            assistant_id=ASSISTANT_ID,
+        )
+        
+        # Poll for completion
+        while run.status in ["queued", "in_progress"]:
+            await asyncio.sleep(1)
+            run = client.beta.threads.runs.retrieve(
+                thread_id=thread.id,
+                run_id=run.id
+            )
+            
+        # Retrieve messages after completion
+        messages = client.beta.threads.messages.list(
+            thread_id=thread.id
+        )
+        
+        # Get the assistant's responses
+        assistant_responses = []
+        for msg in messages.data:
+            if msg.role == "assistant":
+                for content_part in msg.content:
+                    if content_part.type == "text":
+                        assistant_responses.append(content_part.text.value)
+        
+        if not assistant_responses:
+            response = AIMessage(content="No response received from the Business Metrics Agent.")
+            return {"messages": [response], "intermediate_responses": [response.content]}
+            
+        # Create a single response from all assistant messages
+        response_content = "\n\n".join(assistant_responses)
+        print(f"\nBusiness Metrics Agent response: {response_content[:100]}...\n")
+        
+        response = AIMessage(content=response_content)
+        
+        # Store response for synthesis
+        state.intermediate_responses = [response_content]
+        
+        # Return the response
+        return {
+            "messages": [response],
+            "intermediate_responses": [response_content]
+        }
+        
+    except Exception as e:
+        error_msg = f"Error in Business Metrics Agent (OpenAI Assistant): {str(e)}"
+        print(error_msg)
+        response = AIMessage(content=f"I encountered an error while processing your request: {str(e)}. Please try rephrasing your question or contact support if the issue persists.")
+        state.intermediate_responses = [response.content]
+        return {
+            "messages": [response],
+            "intermediate_responses": [response.content]
+        }
 
 
 async def call_synthesizer(state: State) -> Dict:
@@ -671,5 +816,25 @@ builder.add_edge("team_leader_tools", "team_leader")
 # Synthesizer output ends the process
 builder.add_edge("synthesizer", "__end__")
 
-# Compile the builder into an executable graph with checkpointer
+# Compile the regular graph with the synchronous checkpointer for non-async use
 graph = builder.compile(name="Multi-Agent Team", checkpointer=checkpointer)
+
+# Create a helper function to get the graph with async checkpointer
+async def get_graph():
+    """Get the graph with an async-compatible checkpointer.
+    
+    This maintains the same database file as the synchronous checkpointer,
+    ensuring conversation history is preserved across both versions.
+    
+    Returns:
+        The compiled graph with async checkpointer.
+    """
+    # Create the async SQLite connection to the SAME database file
+    # This ensures conversation history is shared between sync and async checkpointers
+    aiosqlite_conn = await aiosqlite.connect("agent_state.sqlite")
+    
+    # Create the async checkpointer with the same database
+    async_checkpointer = AsyncSqliteSaver(aiosqlite_conn)
+    
+    # Return the graph with the async checkpointer
+    return builder.compile(name="Multi-Agent Team", checkpointer=async_checkpointer)
