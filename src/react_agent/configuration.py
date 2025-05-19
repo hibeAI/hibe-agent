@@ -128,6 +128,22 @@ class Configuration:
         },
     )
 
+    OPENAI_API_KEY: str = field(
+        default="",
+        metadata={
+            "description": "OpenAI API Key for accessing OpenAI services",
+            "env_var": "OPENAI_API_KEY"
+        },
+    )
+
+    assistant_id: str = field(
+        default="",
+        metadata={
+            "description": "Identifier for the assistant being used in the conversation",
+            "env_var": "assistant_id"
+        },
+    )
+
     @classmethod
     def from_context(cls) -> Configuration:
         """Create a Configuration instance from a RunnableConfig object."""
