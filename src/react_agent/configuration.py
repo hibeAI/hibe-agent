@@ -143,6 +143,15 @@ class Configuration:
             "env_var": "assistant_id"
         },
     )
+    
+    business_metrics_assistant_id: str = field(
+        default="",
+        metadata={
+            "description": "Specific OpenAI Assistant ID for the Business Metrics agent",
+            "env_var": "BUSINESS_METRICS_ASSISTANT_ID",
+            "json_schema_extra": {"langgraph_nodes": ["business_metrics_agent"]},
+        },
+    )
 
     @classmethod
     def from_context(cls) -> Configuration:

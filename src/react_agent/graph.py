@@ -485,14 +485,13 @@ async def call_business_metrics_agent(state: State) -> Dict:
     state.intermediate_responses = []
 
     # Look for the assistant id from multiple sources in priority order:
-    # 1. Lower-case env var `assistant_id` (matches OpenAI docs example & your .env)
-    # 2. Upper-case env var `ASSISTANT_ID`
-    # 3. Value provided via the `Configuration` object (e.g., through `configurable`)
-    lowercase_env_id = os.getenv("assistant_id")
-    uppercase_env_id = os.getenv("ASSISTANT_ID")
-    config_id = Configuration.from_context().assistant_id
+    # 1. Use business_metrics_assistant_id from config first
+    # 2. Fall back to the generic assistant_id if not found
+    cfg = Configuration.from_context()
 
-    ASSISTANT_ID = lowercase_env_id or uppercase_env_id or config_id
+    ASSISTANT_ID = (
+        cfg.business_metrics_assistant_id or cfg.assistant_id or os.getenv("assistant_id")
+    )
 
     if not ASSISTANT_ID:
         response = AIMessage(content="Error: OpenAI Assistant ID not found in environment variables.")
