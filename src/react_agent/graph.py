@@ -11,6 +11,7 @@ import sqlite3
 import os
 import aiosqlite
 from openai import OpenAI
+from dotenv import load_dotenv
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage, AnyMessage
 from langchain_core.messages.utils import count_tokens_approximately, trim_messages
@@ -33,8 +34,17 @@ from react_agent.utils import load_chat_model
 sqlite_conn = sqlite3.connect("agent_state.sqlite", check_same_thread=False)
 checkpointer = SqliteSaver(sqlite_conn)
 
-# Initialize the OpenAI client
-client = OpenAI()
+# Initialize the OpenAI client with Assistants v2 headers and API key from environment if available
+# Ensure we always target the v2 Assistants endpoints just like the standalone ask_assistant.py utility.
+# This also means that any call to client.beta.threads (used inside the Business Metrics Agent)
+# will consistently create a fresh thread for every run.
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    default_headers={"OpenAI-Beta": "assistants=v2"},
+)
+
+# Load environment variables from a .env file if present.
+load_dotenv(".env", override=True)
 
 # Define EventHandler for OpenAI assistant streaming
 class EventHandler:
@@ -474,8 +484,16 @@ async def call_business_metrics_agent(state: State) -> Dict:
     # Make sure intermediate_responses is empty for this new run
     state.intermediate_responses = []
 
-    # Get the Assistant ID from environment variables
-    ASSISTANT_ID = os.getenv('assistant_id')
+    # Look for the assistant id from multiple sources in priority order:
+    # 1. Lower-case env var `assistant_id` (matches OpenAI docs example & your .env)
+    # 2. Upper-case env var `ASSISTANT_ID`
+    # 3. Value provided via the `Configuration` object (e.g., through `configurable`)
+    lowercase_env_id = os.getenv("assistant_id")
+    uppercase_env_id = os.getenv("ASSISTANT_ID")
+    config_id = Configuration.from_context().assistant_id
+
+    ASSISTANT_ID = lowercase_env_id or uppercase_env_id or config_id
+
     if not ASSISTANT_ID:
         response = AIMessage(content="Error: OpenAI Assistant ID not found in environment variables.")
         return {"messages": [response], "intermediate_responses": [response.content]}
@@ -504,18 +522,16 @@ async def call_business_metrics_agent(state: State) -> Dict:
         context_message = user_messages[0]
     
     try:
-        # Create a thread
+        # Create a thread and add message
         thread = client.beta.threads.create()
-        
-        # Add a message to the thread
-        client.beta.threads.messages.create(
+        thread_message = client.beta.threads.messages.create(
             thread_id=thread.id,
             role="user",
             content=context_message
         )
         
-        # Run the assistant and wait for completion - no streaming
-        print("\nProcessing your request with Business Metrics Agent...\n")
+        # Run the assistant
+        print("Processing your request with Business Metrics Agent...")
         run = client.beta.threads.runs.create(
             thread_id=thread.id,
             assistant_id=ASSISTANT_ID,
@@ -548,8 +564,6 @@ async def call_business_metrics_agent(state: State) -> Dict:
             
         # Create a single response from all assistant messages
         response_content = "\n\n".join(assistant_responses)
-        print(f"\nBusiness Metrics Agent response: {response_content[:100]}...\n")
-        
         response = AIMessage(content=response_content)
         
         # Store response for synthesis
@@ -563,7 +577,6 @@ async def call_business_metrics_agent(state: State) -> Dict:
         
     except Exception as e:
         error_msg = f"Error in Business Metrics Agent (OpenAI Assistant): {str(e)}"
-        print(error_msg)
         response = AIMessage(content=f"I encountered an error while processing your request: {str(e)}. Please try rephrasing your question or contact support if the issue persists.")
         state.intermediate_responses = [response.content]
         return {
