@@ -1,7 +1,7 @@
 interactions:
 - request:
     body: '{"max_tokens": 1024, "messages": [{"role": "user", "content": "Who is the
-      founder of LangChain?"}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      founder of LangChain?"}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:50:53.832822+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -255,7 +255,7 @@ interactions:
       you a lot of research time, plus gives a flashback to ML history and insights
       into the future. Stay ahead alongside over 73,000 professionals from top AI
       labs, ML startups, and enterprises\"}]", "tool_use_id": "toolu_01BqD5W1PjJea5XEEFryhmGg",
-      "is_error": false}]}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      "is_error": false}]}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:50:59.620569+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -323,7 +323,7 @@ interactions:
       message: OK
 - request:
     body: '{"max_tokens": 1024, "messages": [{"role": "user", "content": "Who is the
-      founder of LangChain?"}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      founder of LangChain?"}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:51:11.433533+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -469,7 +469,7 @@ interactions:
       you a lot of research time, plus gives a flashback to ML history and insights
       into the future. Stay ahead alongside over 73,000 professionals from top AI
       labs, ML startups, and enterprises\"}]", "tool_use_id": "toolu_01Ay6FAm67qxRvHMctedfsdo",
-      "is_error": false}]}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      "is_error": false}]}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:51:14.324904+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -540,7 +540,7 @@ interactions:
       message: OK
 - request:
     body: '{"max_tokens": 1024, "messages": [{"role": "user", "content": "Who is the
-      founder of LangChain?"}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      founder of LangChain?"}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:51:55.561440+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -686,7 +686,7 @@ interactions:
       you a lot of research time, plus gives a flashback to ML history and insights
       into the future. Stay ahead alongside over 73,000 professionals from top AI
       labs, ML startups, and enterprises\"}]", "tool_use_id": "toolu_01MeqRWpHv7FACwFxfMVRbx6",
-      "is_error": false}]}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      "is_error": false}]}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:51:58.213993+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -754,7 +754,7 @@ interactions:
       message: OK
 - request:
     body: '{"max_tokens": 1024, "messages": [{"role": "user", "content": "Who is the
-      founder of LangChain?"}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      founder of LangChain?"}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:52:42.318107+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -900,7 +900,7 @@ interactions:
       you a lot of research time, plus gives a flashback to ML history and insights
       into the future. Stay ahead alongside over 73,000 professionals from top AI
       labs, ML startups, and enterprises\"}]", "tool_use_id": "toolu_011WrXBSxr9nrNB5w7QxGUFF",
-      "is_error": false}]}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      "is_error": false}]}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:52:45.186170+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -971,7 +971,7 @@ interactions:
       message: OK
 - request:
     body: '{"max_tokens": 1024, "messages": [{"role": "user", "content": "Who is the
-      founder of LangChain?"}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      founder of LangChain?"}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:53:11.070630+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -1117,7 +1117,7 @@ interactions:
       you a lot of research time, plus gives a flashback to ML history and insights
       into the future. Stay ahead alongside over 73,000 professionals from top AI
       labs, ML startups, and enterprises\"}]", "tool_use_id": "toolu_015FjoxY6gwbbAHrqbYBTxzy",
-      "is_error": false}]}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      "is_error": false}]}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:53:13.741829+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -1186,7 +1186,7 @@ interactions:
       message: OK
 - request:
     body: '{"max_tokens": 1024, "messages": [{"role": "user", "content": "Who is the
-      founder of LangChain?"}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      founder of LangChain?"}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:54:04.768568+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -1332,7 +1332,7 @@ interactions:
       you a lot of research time, plus gives a flashback to ML history and insights
       into the future. Stay ahead alongside over 73,000 professionals from top AI
       labs, ML startups, and enterprises\"}]", "tool_use_id": "toolu_014sKkCQPRVMPXGMJTGu5YSm",
-      "is_error": false}]}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      "is_error": false}]}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:54:07.180606+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -1401,7 +1401,7 @@ interactions:
       message: OK
 - request:
     body: '{"max_tokens": 1024, "messages": [{"role": "user", "content": "Who is the
-      founder of LangChain?"}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      founder of LangChain?"}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:54:32.018816+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -1547,7 +1547,7 @@ interactions:
       you a lot of research time, plus gives a flashback to ML history and insights
       into the future. Stay ahead alongside over 73,000 professionals from top AI
       labs, ML startups, and enterprises\"}]", "tool_use_id": "toolu_01Se5dFjhZBgdHVD1SR3h2rY",
-      "is_error": false}]}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      "is_error": false}]}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:54:34.582739+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -1618,7 +1618,7 @@ interactions:
       message: OK
 - request:
     body: '{"max_tokens": 1024, "messages": [{"role": "user", "content": "Who is the
-      founder of LangChain?"}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      founder of LangChain?"}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:54:53.846143+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -1764,7 +1764,7 @@ interactions:
       you a lot of research time, plus gives a flashback to ML history and insights
       into the future. Stay ahead alongside over 73,000 professionals from top AI
       labs, ML startups, and enterprises\"}]", "tool_use_id": "toolu_01FySBXYTcATdcR8oqqxgfmw",
-      "is_error": false}]}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      "is_error": false}]}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.\n\nSystem time: 2024-11-13T23:54:56.977251+00:00",
       "tools": [{"name": "search", "description": "Search for general web results.
       This function performs a search using the Tavily search engine, which is designed\nto
@@ -1835,7 +1835,7 @@ interactions:
       message: OK
 - request:
     body: '{"max_tokens": 1024, "messages": [{"role": "user", "content": "Who is the
-      founder of LangChain?"}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      founder of LangChain?"}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.", "tools": [{"name": "search", "description": "Search
       for general web results. This function performs a search using the Tavily search
       engine, which is designed\nto provide comprehensive, accurate, and trusted results.
@@ -1981,7 +1981,7 @@ interactions:
       you a lot of research time, plus gives a flashback to ML history and insights
       into the future. Stay ahead alongside over 73,000 professionals from top AI
       labs, ML startups, and enterprises\"}]", "tool_use_id": "toolu_01LAyiyBfbnEZTebPJRg5MCr",
-      "is_error": false}]}], "model": "claude-3-5-sonnet-20240620", "system": "You
+      "is_error": false}]}], "model": "claude-3-7-sonnet-latest", "system": "You
       are a helpful AI assistant.", "tools": [{"name": "search", "description": "Search
       for general web results. This function performs a search using the Tavily search
       engine, which is designed\nto provide comprehensive, accurate, and trusted results.

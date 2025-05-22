@@ -100,7 +100,7 @@ async def run_agent_with_query(query: str, thread_id: str = None) -> str:
     # Create configuration with thread_id for memory persistence
     config: Dict = {
         "configurable": {
-            "model": os.environ.get("LLM_MODEL", "anthropic/claude-3-5-sonnet-20240620"),
+            "model": os.environ.get("LLM_MODEL", "anthropic/claude-3-7-sonnet-latest"),
             "max_search_results": 5,
             "thread_id": thread_id  # This is the key for memory to work!
         }

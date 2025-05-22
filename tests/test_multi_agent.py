@@ -27,7 +27,7 @@ async def run_test(query: str) -> None:
     # Create configuration with default values
     config: Dict = {
         "configurable": {
-            "model": os.environ.get("LLM_MODEL", "anthropic/claude-3-5-sonnet-20240620"),
+            "model": os.environ.get("LLM_MODEL", "anthropic/claude-3-7-sonnet-latest"),
             "max_search_results": 5,
         }
     }
