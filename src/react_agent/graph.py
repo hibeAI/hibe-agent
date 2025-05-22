@@ -497,28 +497,20 @@ async def call_business_metrics_agent(state: State) -> Dict:
         response = AIMessage(content="Error: OpenAI Assistant ID not found in environment variables.")
         return {"messages": [response], "intermediate_responses": [response.content]}
 
-    # Get all user messages to include context
-    user_messages = []
-    for msg in state.messages:
-        if isinstance(msg, HumanMessage):
-            user_messages.append(msg.content)
+    # Get the last AI message (analysis from previous agent, likely team leader)
+    last_ai_message = None
+    for msg in reversed(state.messages):
+        if isinstance(msg, AIMessage):
+            last_ai_message = msg.content
+            break
             
-    if not user_messages:
-        response = AIMessage(content="No user messages found to forward to the Business Metrics Agent.")
+    if not last_ai_message:
+        response = AIMessage(content="No agent analysis found to forward to the Business Metrics Agent.")
         return {"messages": [response], "intermediate_responses": [response.content]}
     
-    # Create a context-rich query with history
-    context_message = ""
-    if len(user_messages) > 1:
-        # Include previous messages as context
-        context_message = "User conversation history:\n"
-        for i, msg in enumerate(user_messages[:-1]):
-            context_message += f"Message {i+1}: {msg}\n"
-        context_message += f"\nCurrent user query: {user_messages[-1]}\n\n"
-        context_message += "Please analyze the full conversation history when answering the current query."
-    else:
-        # Just one message
-        context_message = user_messages[0]
+    # Create an analysis-focused context message
+    print(f"Last AI message: {last_ai_message}")
+    context_message = f"\n\n{last_ai_message}"
     
     try:
         # Create a thread and add message
