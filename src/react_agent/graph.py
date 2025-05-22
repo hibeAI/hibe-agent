@@ -467,7 +467,7 @@ Please analyze these results and provide the answer to the user's original quest
 async def call_business_metrics_agent(state: State) -> Dict:
     """Call the Business Metrics Agent to provide business analysis.
 
-    This agent specializes in business metrics analysis and provides
+    This agent specializes in business metrics analysis backed by business data and provides
     thorough business insights and recommendations using an OpenAI Assistant.
 
     Args:
@@ -587,8 +587,7 @@ async def call_business_metrics_agent(state: State) -> Dict:
 async def call_synthesizer(state: State) -> Dict:
     """Call the Synthesizer Agent to create a final, cohesive response.
 
-    This agent takes the outputs from other agents and synthesizes them
-    into a user-friendly final answer.
+    This agent just makes sure to format the data in a human readable way. It does not add or remove any information.
 
     Args:
         state (State): The current state of the conversation.
